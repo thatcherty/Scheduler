@@ -1,0 +1,32 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center container mt-4">
+    <h1 class="display-4">Select an Algorithm</h1>
+    <div class="row">
+
+        @foreach (var algo in Algorithms.GetValues(typeof(Algorithms)))
+        {
+            <div class="col-6 col-md-4 mb-4">
+                <a class="card tile-btn text-decoration-none" asp-page="TaskDetails" asp-page-handler="@algo">
+                    <div class="card-body text-center">
+                        <i class="bi bi-star icon-large"></i> 
+                        <h5 class="card-title mt-2">@algo</h5>
+                        <p class="card-text">@Model.AlgoDescriptions[(int)algo]</p>
+                    </div>
+                </a>
+            </div>
+        }
+
+    </div>
+
+
+</div>
+
+@{
+
+    Console.WriteLine(Model.SelectedAlgorithm);
+}
