@@ -12,7 +12,7 @@ namespace Scheduler.Pages
         HRRN,
         Feedback
     }
-        
+    
 
     public class IndexModel : PageModel
     {
@@ -29,9 +29,10 @@ namespace Scheduler.Pages
             AlgoDescriptions.Add("Feedback");
         }
 
-        public void OnPost()
+        public RedirectToPageResult OnGetSelectAlgo(Algorithms algo)
         {
-            
+            Console.WriteLine("Handler called");
+            return RedirectToPage("/TaskDetails", new { algo });
         }
 
     }

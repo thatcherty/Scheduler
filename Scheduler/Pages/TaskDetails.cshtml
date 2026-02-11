@@ -2,12 +2,59 @@
 @model Scheduler.Pages.TaskDetailsModel
 @{
     // attempting to make handler value show up in header
-    ViewData["Title"] = RouteData.Values["_Handler"];
+    ViewData["Title"] = "Task Details";
 }
 
 <div class="container">
 
     <h1>Welcome to @ViewData["Title"]</h1>
+
+    @if (Model.ListDetails){
+        <form method="post">
+          <div class="form-row align-items-center">
+            <div class="col-auto">
+                    <label class="sr-only" for="NumberOfTasks">Number of Tasks</label>
+                    <input type="text" class="form-control mb-2" placeholder="Enter Number of Tasks" asp-for="NumberOfTasks">
+            </div>
+
+            @if (Model.HasQuantum)
+            {
+                <div class="col-auto">
+                        <label class="sr-only" for="TimeQuatum">Time Quantum</label>
+                        <input type="text" class="form-control mb-2" id="inlineFormInput" placeholder="Enter Time Quantum" asp-for="TimeQuatum">
+                </div>
+
+            }
+
+            <div class="col-auto">
+                    <button type="submit" class="btn btn-primary mb-2" asp-page="TaskDetails" asp-page-handler="SubmitDetails">Submit</button>
+            </div>
+          </div>
+        </form>
+    }
+
+    @if (Model.ListProcesses)
+    {
+        <form method="post">
+            <div class="form-row alogn-items-center">
+                @for (int i = 0; i < Model.NumberOfTasks; i++)
+                {
+                    <div class="col-auto">
+                        <label for="Processes[@i].Name">Process @(i + 1)</label>
+                        <input asp-for="Processes[@i].Name" class="form-control mb-2" />
+                        <label for="Processes[@i].ProcessTime">Process Time</label>
+                        <input asp-for="Processes[@i].ProcessTime" class="form-control mb-2" />
+                        <label for="Processes[@i].ArrivalTime">Arrival Time</label>
+                        <input asp-for="Processes[@i].ArrivalTime" class="form-control mb-2" />
+                    </div>
+                }
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary mb-2" asp-page="TaskDetails" asp-page-handler="SubmitTasks">Submit</button>
+                </div>
+            </div>
+        </form>
+
+    }
 
 
 </div>
