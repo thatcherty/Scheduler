@@ -1,24 +1,14 @@
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Caching.Memory;
+using System.Collections;
 using System.Threading.Tasks;
 using System.Transactions;
 
 namespace Scheduler.Pages
 {
-    public class Process
-    {
-        public string Name { get; set; } = string.Empty;
-        public int ArrivalTime { get; set; }
-
-        public int ProcessTime  { get; set; }
-
-        public int FinishTime { get; set; }
-
-        public int Turnaround {  get; set; }
-
-        public int TT { get; set; }
-    }
     public class TaskDetailsModel : PageModel
     {
         Algorithms SelectedAlgo { get; set; }
@@ -26,20 +16,32 @@ namespace Scheduler.Pages
         [BindProperty]
         public int NumberOfTasks { get; set; }
 
-        public List<Process> Processes { get; set; }
+        [BindProperty]
+        public List<Process>? Processes { get; set; }
 
         [BindProperty]
         public int TimeQuatum { get; set; }
+
+        public int TotalTime { get; set; }
 
         public bool HasQuantum { get; set; }
         public bool ListProcesses { get; set; }
         public bool ListDetails { get; set; }
 
+        public string? Key {  get; set; }
+
+        // enable use of cache for list transfer
+        private readonly IMemoryCache _cache;
+
+        public TaskDetailsModel(IMemoryCache cache)
+        {
+            _cache = cache;
+        }
+
 
         public async Task<IActionResult> OnGet(Algorithms algo)
         {
             Console.WriteLine("Made it to the Task Page");
-
 
             SelectedAlgo = algo;
 
@@ -47,7 +49,7 @@ namespace Scheduler.Pages
 
             Console.WriteLine(ListDetails);
 
-            if (SelectedAlgo == Algorithms.FCFS || SelectedAlgo == Algorithms.Feedback)
+            if (SelectedAlgo == Algorithms.RR || SelectedAlgo == Algorithms.Feedback)
             {
                 HasQuantum = true;
             }
@@ -68,76 +70,151 @@ namespace Scheduler.Pages
 
             Console.WriteLine(NumberOfTasks);
 
+            Processes = new List<Process>(new Process[NumberOfTasks]);
+
             ListProcesses = true;
             ListDetails = false;
             return Page();
         }
 
-        public async Task<IActionResult> OnPostSubmitTasks()
+        public RedirectToPageResult OnPostSubmitTasks()
         {
             Console.WriteLine("Time to list the tasks");
 
             foreach (Process proc in Processes)
             {
-                Console.WriteLine(proc.Name, proc.ArrivalTime, proc.ProcessTime);
+                Console.WriteLine($"{proc.Name} {proc.ArrivalTime} {proc.ServiceTime}");
+            }
+            
+            // select algorithm
+            switch (SelectedAlgo)
+            {
+                case Algorithms.FCFS:
+                    Key = FCFS();
+                    break;
+                case Algorithms.RR:
+                    Key = RR();
+                    break;
+                case Algorithms.SPN:
+                    Key = SPN();
+                    break;
+                case Algorithms.SRT:
+                    Key = SRT();
+                    break;
+                case Algorithms.HRRN:
+                    Key = HRRN();
+                    break;
+                case Algorithms.Feedback:
+                    Key = Feedback();
+                    break;
+                default:
+                    break;
             }
 
-            return Page();
+            return RedirectToPage("/Output", new { Key });
+
         }
 
-        public async void OnGetFCFS()
+        public string FCFS()
         {
-            Console.WriteLine("First Come First Serve");
+            TotalTime = 0;
+            int TotalServiceTime = 0;
+
+            // sort processes by arrival time
+            Processes.Sort((p1, p2) => p1.ArrivalTime.CompareTo(p2.ArrivalTime));
 
 
+            // assuming that the total of all processes service times
+            // will never be exceeded due to a late arrival
+            foreach (Process p in Processes)
+            {
+                TotalServiceTime += p.ServiceTime;
+            }
 
+            foreach (Process p in Processes)
+            {
+                p.IsRunning = new List<bool>();
+
+                TotalTime += p.ServiceTime;
+
+                p.FinishTime = TotalTime;
+
+                p.Turnaround = p.FinishTime - p.ArrivalTime;
+
+                p.TT = (double)p.Turnaround / p.ServiceTime;
+
+                // initialize list to track what time index a process ran
+                for (int i = 0; i < TotalServiceTime; i++)
+                {
+                    p.IsRunning.Add(false);
+
+                    if (i >= p.FinishTime - p.ServiceTime && i < p.FinishTime)
+                    {
+                        p.IsRunning[i] = true;
+                    }
+                }
+
+                Console.WriteLine($"{p.Name}: {p.FinishTime}");
+            }
+
+            // get identifier for list to pass to next page
+            var key = Guid.NewGuid().ToString("N");
+            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
+
+            return key;
         }
 
-
-        public async void OnGetRR()
+        public string RR()
         {
-            Console.WriteLine("Round Robin");
-            HasQuantum = true;
+            TotalTime = 0;
 
 
-            
+
+            // get identifier for list to pass to next page
+            var key = Guid.NewGuid().ToString("N");
+            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
+
+            return key;
         }
 
-
-        public async void OnGetSPN()
+        public string SPN()
         {
-            Console.WriteLine("Shortest Process Next");
+            // get identifier for list to pass to next page
+            var key = Guid.NewGuid().ToString("N");
+            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
 
-
-            
+            return key;
         }
 
-
-        public async void OnGetSRT()
+        public string SRT()
         {
-            Console.WriteLine("Shortest Remaining Time");
+            // get identifier for list to pass to next page
+            var key = Guid.NewGuid().ToString("N");
+            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
 
-
-            
+            return key;
         }
 
 
-        public async void OnGetHRRN()
+        public string HRRN()
         {
-            Console.WriteLine("Highest Response Ratio Next");
+            // get identifier for list to pass to next page
+            var key = Guid.NewGuid().ToString("N");
+            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
 
-
-            
+            return key;
         }
 
 
-        public async void OnGetFeedback()
+        public string Feedback()
         {
-            Console.WriteLine("Feedback");
-            HasQuantum = true;
+            // get identifier for list to pass to next page
+            var key = Guid.NewGuid().ToString("N");
+            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
 
-
-            
+            return key;
         }
+
+
     }
 }

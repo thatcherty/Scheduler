@@ -1,0 +1,66 @@
+﻿@page
+@model Scheduler.Pages.OutputModel
+@{
+    ViewData["Title"] = "CPU Schedule";
+}
+
+<div class="container">
+
+    <h1>@ViewData["Title"]</h1>
+
+    <table class="table table-bordered">
+
+        <tr>
+            <th>Process</th>
+            @for (int i = 0; i < Model.TotalServiceTime; i++)
+            {
+                <th>@(i+1)</th>
+            }
+        </tr>
+        @foreach (Process p in Model.Processes)
+        {
+            <tr>
+                <td>@p.Name</td>
+                @foreach (bool b in p.IsRunning)
+                {
+                    @if(b) 
+                    {
+                        <td class="bg-primary"> </td>
+                    }
+                    else
+                    {
+                        <td> </td>
+                    }
+                }
+            </tr>
+        }
+
+    </table>
+
+    <table class="table table-bordered">
+
+        <tr>
+            <th>Process</th>
+            <th>Arrival Time</th>
+            <th>Service Time</th>
+            <th>Finish Time</th>
+            <th>Turnaround Time</th>
+            <th>Tr/Ts</th>
+        </tr>
+        @foreach (Process p in Model.Processes)
+        {
+            <tr>
+                <td>@p.Name</td>
+                <td>@p.ArrivalTime</td>
+                <td>@p.ServiceTime</td>
+                <td>@p.FinishTime</td>
+                <td>@p.Turnaround</td>
+                <td>@p.TT</td>
+            </tr>
+        }
+
+    </table>
+
+
+
+</div>

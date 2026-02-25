@@ -7,7 +7,7 @@
 
 <div class="container">
 
-    <h1>Welcome to @ViewData["Title"]</h1>
+    <h1>@ViewData["Title"]</h1>
 
     @if (Model.ListDetails){
         <form method="post">
@@ -36,22 +36,25 @@
     @if (Model.ListProcesses)
     {
         <form method="post">
-            <div class="form-row alogn-items-center">
+            <table class="table table-bordered">
+                <tr>
+                    <th>Process Name</th>
+                    <th>Arrival Time</th>
+                    <th>Service Time</th>
+                </tr>
+                <tbody>
                 @for (int i = 0; i < Model.NumberOfTasks; i++)
                 {
-                    <div class="col-auto">
-                        <label for="Processes[@i].Name">Process @(i + 1)</label>
-                        <input asp-for="Processes[@i].Name" class="form-control mb-2" />
-                        <label for="Processes[@i].ProcessTime">Process Time</label>
-                        <input asp-for="Processes[@i].ProcessTime" class="form-control mb-2" />
-                        <label for="Processes[@i].ArrivalTime">Arrival Time</label>
-                        <input asp-for="Processes[@i].ArrivalTime" class="form-control mb-2" />
-                    </div>
+                    <tr>
+                        <td><input asp-for="Processes[@i].Name" class="form-control mb-2" /></td>
+                        <td><input asp-for="Processes[@i].ArrivalTime" class="form-control mb-2" /></td>
+                        <td><input asp-for="Processes[@i].ServiceTime" class="form-control mb-2" /></td>
+                    </tr>
                 }
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-primary mb-2" asp-page="TaskDetails" asp-page-handler="SubmitTasks">Submit</button>
-                </div>
-            </div>
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-primary mb-2" asp-page="TaskDetails" asp-page-handler="SubmitTasks">Submit</button>
+
         </form>
 
     }

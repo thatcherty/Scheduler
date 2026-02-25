@@ -3,17 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Scheduler.Pages
 {
-    public enum Algorithms
-    {
-        FCFS,
-        RR,
-        SPN,
-        SRT,
-        HRRN,
-        Feedback
-    }
     
-
     public class IndexModel : PageModel
     {
         public Algorithms SelectedAlgorithm { get; set; }
