@@ -200,6 +200,8 @@ namespace Scheduler.Pages
                     curr = 0;
                     Processes[curr].RemainingTime--;
                     Processes[curr].IsRunning[i] = true;
+                    Processes[curr].Queued = true;
+
                 }
                 // let process finish running
                 else if (Processes[curr].RemainingTime > 0)
@@ -211,9 +213,18 @@ namespace Scheduler.Pages
                 // select next process
                 else
                 {
-                    Processes[curr].FinishTime = TotalTime;
-                    Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
-                    Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+                    // only update stats if process just finished
+                    if (Processes[curr].Queued)
+                    {
+                        Processes[curr].FinishTime = TotalTime;
+                        Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                        Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+                    }
+
+                    // ensure stats are not updated again
+                    // in the event the next available process
+                    // has not arrived yet
+                    Processes[curr].Queued = false;
 
                     for (int j = 0; j < Processes.Count; j++)
                     {
@@ -229,18 +240,24 @@ namespace Scheduler.Pages
                     }
 
                     // select shortest process from top of min-heap
-                    curr = heap.Dequeue();
-                    Processes[curr].RemainingTime--;
-                    Processes[curr].IsRunning[i] = true;
-
+                    // assuming it is not empty (account for CPU idle time)
+                    if (heap.Count > 0)
+                    {
+                        curr = heap.Dequeue();
+                        Processes[curr].RemainingTime--;
+                        Processes[curr].IsRunning[i] = true;
+                    }
                 }
                 TotalTime++;
             }
 
-            Processes[curr].FinishTime = TotalTime;
-            Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
-            Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
-
+            // add calculations to final process
+            if (curr > -1)
+            {
+                Processes[curr].FinishTime = TotalTime;
+                Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+            }
 
             // get identifier for list to pass to next page
             var key = Guid.NewGuid().ToString("N");
