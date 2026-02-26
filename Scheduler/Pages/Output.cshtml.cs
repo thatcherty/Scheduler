@@ -8,9 +8,6 @@ namespace Scheduler.Pages
     {
         public List<Process>? Processes;
 
-        // consider passing this value in to avoid recalculating
-        public int TotalServiceTime;
-
         private readonly IMemoryCache _cache;
 
         public OutputModel(IMemoryCache cache)
@@ -21,12 +18,6 @@ namespace Scheduler.Pages
         {
 
             Processes = _cache.Get<List<Process>>(key) ?? new();
-
-            // consider passing this value in to avoid recalculating
-            foreach (Process p in Processes)
-            {
-                TotalServiceTime += p.ServiceTime;
-            }
 
             return Page();
         }

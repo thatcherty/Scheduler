@@ -21,7 +21,6 @@ namespace Scheduler.Pages
 
         public RedirectToPageResult OnGetSelectAlgo(Algorithms algo)
         {
-            Console.WriteLine("Handler called");
             return RedirectToPage("/TaskDetails", new { algo });
         }
 

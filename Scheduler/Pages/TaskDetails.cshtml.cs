@@ -11,8 +11,6 @@ namespace Scheduler.Pages
 {
     public class TaskDetailsModel : PageModel
     {
-        Algorithms SelectedAlgo { get; set; }
-
         [BindProperty]
         public int NumberOfTasks { get; set; }
 
@@ -41,15 +39,12 @@ namespace Scheduler.Pages
 
         public async Task<IActionResult> OnGet(Algorithms algo)
         {
-            Console.WriteLine("Made it to the Task Page");
 
-            SelectedAlgo = algo;
+            Process.SelectedAlgo = algo;
 
             ListDetails = true;
 
-            Console.WriteLine(ListDetails);
-
-            if (SelectedAlgo == Algorithms.RR || SelectedAlgo == Algorithms.Feedback)
+            if (Process.SelectedAlgo == Algorithms.RR || Process.SelectedAlgo == Algorithms.Feedback)
             {
                 HasQuantum = true;
             }
@@ -59,19 +54,9 @@ namespace Scheduler.Pages
 
         public async Task<IActionResult> OnPostSubmitDetails()
         {
-            if (HasQuantum)
-            {
-                Console.WriteLine("This needs a time quantum");
-            }
-            else
-            {
-                Console.WriteLine("This does not need a time quantum");
-            }
-
-            Console.WriteLine(NumberOfTasks);
-
             Processes = new List<Process>(new Process[NumberOfTasks]);
 
+            // update visible
             ListProcesses = true;
             ListDetails = false;
             return Page();
@@ -79,15 +64,34 @@ namespace Scheduler.Pages
 
         public RedirectToPageResult OnPostSubmitTasks()
         {
-            Console.WriteLine("Time to list the tasks");
+            // calculate TotalServiceTime
+            // considering idle CPU time
+            // sort processes by arrival time
+            Processes.Sort((p1, p2) => p1.ArrivalTime.CompareTo(p2.ArrivalTime));
 
-            foreach (Process proc in Processes)
+            Process.TotalServiceTime = 0;
+
+            for (int i = 0; i < Processes.Count; i++)
             {
-                Console.WriteLine($"{proc.Name} {proc.ArrivalTime} {proc.ServiceTime}");
+                Process.TotalServiceTime = Math.Max(Process.TotalServiceTime, Processes[i].ArrivalTime) + Processes[i].ServiceTime;
             }
-            
+
+            // initialize list to track if process
+            // ran at specified time
+            foreach (Process p in Processes)
+            {
+                p.IsRunning = new List<bool>();
+                p.RemainingTime = p.ServiceTime;
+
+                for (int i = 0; i < Process.TotalServiceTime; i++)
+                {
+                    p.IsRunning.Add(false);
+                }
+            }
+
+
             // select algorithm
-            switch (SelectedAlgo)
+            switch (Process.SelectedAlgo)
             {
                 case Algorithms.FCFS:
                     Key = FCFS();
@@ -118,24 +122,10 @@ namespace Scheduler.Pages
         public string FCFS()
         {
             TotalTime = 0;
-            int TotalServiceTime = 0;
-
-            // sort processes by arrival time
-            Processes.Sort((p1, p2) => p1.ArrivalTime.CompareTo(p2.ArrivalTime));
-
-
-            // assuming that the total of all processes service times
-            // will never be exceeded due to a late arrival
-            foreach (Process p in Processes)
-            {
-                TotalServiceTime += p.ServiceTime;
-            }
 
             foreach (Process p in Processes)
             {
-                p.IsRunning = new List<bool>();
-
-                TotalTime += p.ServiceTime;
+                TotalTime = Math.Max(TotalTime, p.ArrivalTime) + p.ServiceTime;
 
                 p.FinishTime = TotalTime;
 
@@ -143,18 +133,15 @@ namespace Scheduler.Pages
 
                 p.TT = (double)p.Turnaround / p.ServiceTime;
 
-                // initialize list to track what time index a process ran
-                for (int i = 0; i < TotalServiceTime; i++)
+                // flag time indices where process was running
+                for (int i = p.ArrivalTime; i < TotalTime; i++)
                 {
-                    p.IsRunning.Add(false);
-
                     if (i >= p.FinishTime - p.ServiceTime && i < p.FinishTime)
                     {
                         p.IsRunning[i] = true;
                     }
+                    
                 }
-
-                Console.WriteLine($"{p.Name}: {p.FinishTime}");
             }
 
             // get identifier for list to pass to next page
@@ -167,7 +154,26 @@ namespace Scheduler.Pages
         public string RR()
         {
             TotalTime = 0;
+            int curr = -1;
 
+            // pass index of the waiting processes
+            // from the existing processes list
+            Queue<int> waiting = new Queue<int>();
+
+            for (int i = 0; i < Process.TotalServiceTime; i++)
+            {
+                TotalTime++;
+                if (Processes[waiting.Peek()].ArrivalTime == i)
+                {
+                    // if no process running
+                    if (curr == -1)
+                    {
+                        curr = waiting.Dequeue();
+                        Processes[curr].RemainingTime--;
+
+                    }
+                }
+            }
 
 
             // get identifier for list to pass to next page
@@ -179,6 +185,63 @@ namespace Scheduler.Pages
 
         public string SPN()
         {
+            // currently running process index
+            int curr = -1;
+            TotalTime = 0;
+
+            PriorityQueue<int, int> heap = new PriorityQueue<int, int>();
+
+            for (int i = 0; i < Process.TotalServiceTime; i++)
+            {
+                
+                // first process starts
+                if (curr == -1)
+                {
+                    curr = 0;
+                    Processes[curr].RemainingTime--;
+                    Processes[curr].IsRunning[i] = true;
+                }
+                // let process finish running
+                else if (Processes[curr].RemainingTime > 0)
+                {
+                    Processes[curr].RemainingTime--;
+                    Processes[curr].IsRunning[i] = true;
+                }
+                // record stats
+                // select next process
+                else
+                {
+                    Processes[curr].FinishTime = TotalTime;
+                    Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                    Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+
+                    for (int j = 0; j < Processes.Count; j++)
+                    {
+                        // select only processes
+                        //  - not completed
+                        //  - not queued
+                        //  - that have arrived
+                        if (Processes[j].RemainingTime > 0 && !Processes[j].Queued && Processes[j].ArrivalTime <= TotalTime)
+                        {
+                            Processes[j].Queued = true;
+                            heap.Enqueue(j, Processes[j].ServiceTime);
+                        }
+                    }
+
+                    // select shortest process from top of min-heap
+                    curr = heap.Dequeue();
+                    Processes[curr].RemainingTime--;
+                    Processes[curr].IsRunning[i] = true;
+
+                }
+                TotalTime++;
+            }
+
+            Processes[curr].FinishTime = TotalTime;
+            Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+            Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+
+
             // get identifier for list to pass to next page
             var key = Guid.NewGuid().ToString("N");
             _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
