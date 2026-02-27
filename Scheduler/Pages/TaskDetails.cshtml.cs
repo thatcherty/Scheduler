@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Transactions;
 
@@ -119,6 +120,14 @@ namespace Scheduler.Pages
 
         }
 
+        public string? get_key()
+        {
+            // get identifier for list to pass to next page
+            var key = Guid.NewGuid().ToString("N");
+            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
+            return key;
+        }
+
         public string FCFS()
         {
             TotalTime = 0;
@@ -144,11 +153,9 @@ namespace Scheduler.Pages
                 }
             }
 
-            // get identifier for list to pass to next page
-            var key = Guid.NewGuid().ToString("N");
-            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
 
-            return key;
+
+            return get_key();
         }
 
         public string RR()
@@ -175,12 +182,7 @@ namespace Scheduler.Pages
                 }
             }
 
-
-            // get identifier for list to pass to next page
-            var key = Guid.NewGuid().ToString("N");
-            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
-
-            return key;
+            return get_key();
         }
 
         public string SPN()
@@ -259,40 +261,95 @@ namespace Scheduler.Pages
                 Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
             }
 
-            // get identifier for list to pass to next page
-            var key = Guid.NewGuid().ToString("N");
-            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
-
-            return key;
+            return get_key();
         }
 
         public string SRT()
         {
-            // get identifier for list to pass to next page
-            var key = Guid.NewGuid().ToString("N");
-            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
+            // currently running process index
+            int curr = -1;
 
-            return key;
+            PriorityQueue<int, int> heap = new PriorityQueue<int, int>();
+
+            // track which processes have arrived
+            int LastArrivedIDX = 0;
+
+            for (int i = 0; i < Process.TotalServiceTime; i++)
+            {
+                // initial process
+                if (curr == -1)
+                {
+                    curr = 0;
+                    Processes[curr].RemainingTime--;
+                    Processes[curr].IsRunning[i] = true;
+                    Processes[curr].Queued = true;
+                }
+                else
+                {
+                    // simulate process arrival
+                    if (Processes.Count > LastArrivedIDX+1 && Processes[LastArrivedIDX + 1].ArrivalTime == i)
+                    {
+                        heap.Enqueue(LastArrivedIDX + 1, Processes[LastArrivedIDX + 1].RemainingTime);
+                        Processes[LastArrivedIDX + 1].Queued = true;
+                        LastArrivedIDX++;
+                    }
+
+                    // udpate if current process just completed
+                    if (Processes[curr].RemainingTime == 0 && Processes[curr].Queued)
+                    {
+                        Processes[curr].FinishTime = i;
+                        Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                        Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+                        Processes[curr].Queued = false;
+
+                    }
+                    else if (Processes[curr].Queued)
+                    {
+                        heap.Enqueue(curr, Processes[curr].RemainingTime);
+                    }
+
+                    // select shortest process from top of min-heap
+                    // assuming it is not empty (account for CPU idle time)
+                    if (heap.Count > 0)
+                    {
+                        curr = heap.Dequeue();
+                        Processes[curr].RemainingTime--;
+                        Processes[curr].IsRunning[i] = true;
+                    }
+                    // if heap is empty, but there is still a running process
+                    else if (Processes[curr].Queued)
+                    {
+                        Processes[curr].RemainingTime--;
+                        Processes[curr].IsRunning[i] = true;
+                    }
+                }
+            }
+
+            // add calculations to final process
+            if (curr > -1)
+            {
+                Processes[curr].FinishTime = Process.TotalServiceTime;
+                Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+            }
+
+            return get_key();
         }
 
 
         public string HRRN()
         {
-            // get identifier for list to pass to next page
-            var key = Guid.NewGuid().ToString("N");
-            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
 
-            return key;
+
+            return get_key();
         }
 
 
         public string Feedback()
         {
-            // get identifier for list to pass to next page
-            var key = Guid.NewGuid().ToString("N");
-            _cache.Set(key, Processes, TimeSpan.FromMinutes(10));
 
-            return key;
+
+            return get_key();
         }
 
 
