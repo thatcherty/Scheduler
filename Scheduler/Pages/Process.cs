@@ -20,6 +20,7 @@
         public int ServiceTime { get; set; } 
 
         public int RemainingTime { get; set; }
+        public double ResponseRatio { get; set; }
 
         public int WaitTime { get; set; }
 
