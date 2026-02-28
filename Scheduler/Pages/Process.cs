@@ -13,11 +13,14 @@
     {
         public static int TotalServiceTime { get; set; }
 
+        public static int TimeQuantum { get; set; }
         public static Algorithms SelectedAlgo { get; set; }
         public string Name { get; set; } = string.Empty;
         public int ArrivalTime { get; set; }
 
         public int ServiceTime { get; set; } 
+
+        public int TimeInQuantum { get; set; }
 
         public int RemainingTime { get; set; }
         public double ResponseRatio { get; set; }

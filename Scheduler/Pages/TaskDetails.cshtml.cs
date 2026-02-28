@@ -19,7 +19,7 @@ namespace Scheduler.Pages
         public List<Process>? Processes { get; set; }
 
         [BindProperty]
-        public int TimeQuatum { get; set; }
+        public int TimeQuantum { get; set; }
 
         public int TotalTime { get; set; }
 
@@ -56,6 +56,7 @@ namespace Scheduler.Pages
         public async Task<IActionResult> OnPostSubmitDetails()
         {
             Processes = new List<Process>(new Process[NumberOfTasks]);
+            Process.TimeQuantum = TimeQuantum;
 
             // update visible
             ListProcesses = true;
@@ -83,6 +84,7 @@ namespace Scheduler.Pages
             {
                 p.IsRunning = new List<bool>();
                 p.RemainingTime = p.ServiceTime;
+                p.TimeInQuantum = 0;
 
                 for (int i = 0; i < Process.TotalServiceTime; i++)
                 {
@@ -162,24 +164,110 @@ namespace Scheduler.Pages
         {
             TotalTime = 0;
             int curr = -1;
+            int LastArrivedIDX = -1;
 
-            // pass index of the waiting processes
-            // from the existing processes list
-            Queue<int> waiting = new Queue<int>();
+            Queue<int> Waiting = new Queue<int>();
 
             for (int i = 0; i < Process.TotalServiceTime; i++)
             {
-                TotalTime++;
-                if (Processes[waiting.Peek()].ArrivalTime == i)
+                // add new process to queue
+                // - check arrival time
+                // - set Queued to true
+                // simulate process arrival
+                if (Processes.Count > LastArrivedIDX + 1 && Processes[LastArrivedIDX + 1].ArrivalTime == i)
                 {
-                    // if no process running
-                    if (curr == -1)
-                    {
-                        curr = waiting.Dequeue();
-                        Processes[curr].RemainingTime--;
+                    Waiting.Enqueue(LastArrivedIDX + 1);
+                    Processes[LastArrivedIDX + 1].Queued = true;
+                    LastArrivedIDX++;
+                }
 
+                // if initial process
+                // - assign curr to first proc in queue
+                // - remove curr from queue
+                // - increment TimeInQuantum
+                // - decrement RemainingTime
+                // - set IsRunning index to true
+                if (curr == -1)
+                {
+                    curr = Waiting.Dequeue();
+                    Processes[curr].RemainingTime--;
+                    Processes[curr].TimeInQuantum++;
+                    Processes[curr].IsRunning[i] = true;
+                }
+                else
+                {
+                    // if curr proc RemaingingTime == 0
+                    // - update FinishTime, Turnaround, TT
+                    // - set Queued = 0
+                    if (Processes[curr].RemainingTime == 0 && Processes[curr].Queued)
+                    {
+                        Processes[curr].FinishTime = i;
+                        Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                        Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+                        Processes[curr].Queued = false;
+
+                        // - if values in queue
+                        //     - set curr to front of queue
+                        //     - remove curr from queue
+                        if (Waiting.Count > 0)
+                        {
+                            curr = Waiting.Dequeue();
+                            Processes[curr].RemainingTime--;
+                            Processes[curr].TimeInQuantum++;
+                            Processes[curr].IsRunning[i] = true;
+                        }
+                    }
+
+
+                    // if curr proc exceed time quantum
+                    // - set TimeInQuantum = 0
+                    // - move to back of queue
+                    else if (Processes[curr].TimeInQuantum == Process.TimeQuantum && Processes[curr].Queued)
+                    {
+                        Processes[curr].TimeInQuantum = 0;
+                        Waiting.Enqueue(curr);
+
+                        // - if values in queue
+                        //     - set curr to front of queue
+                        //     - remove curr from queue
+                        if (Waiting.Count > 0)
+                        {
+                            curr = Waiting.Dequeue();
+                            Processes[curr].RemainingTime--;
+                            Processes[curr].TimeInQuantum++;
+                            Processes[curr].IsRunning[i] = true;
+                        }
+                    }
+                    // let current process continue
+                    else if (Processes[curr].Queued)
+                    {
+                        Processes[curr].RemainingTime--;
+                        Processes[curr].TimeInQuantum++;
+                        Processes[curr].IsRunning[i] = true;
+                    }
+                    // no running process
+                    else
+                    {
+                        // - if values in queue
+                        //     - set curr to front of queue
+                        //     - remove curr from queue
+                        if (Waiting.Count > 0)
+                        {
+                            curr = Waiting.Dequeue();
+                            Processes[curr].RemainingTime--;
+                            Processes[curr].TimeInQuantum++;
+                            Processes[curr].IsRunning[i] = true;
+                        }
                     }
                 }
+            }
+
+            // add calculations to final process
+            if (curr > -1)
+            {
+                Processes[curr].FinishTime = Process.TotalServiceTime;
+                Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
             }
 
             return get_key();
@@ -191,7 +279,7 @@ namespace Scheduler.Pages
             int curr = -1;
             TotalTime = 0;
 
-            PriorityQueue<int, int> heap = new PriorityQueue<int, int>();
+            PriorityQueue<int, int> Waiting = new PriorityQueue<int, int>();
 
             for (int i = 0; i < Process.TotalServiceTime; i++)
             {
@@ -237,15 +325,15 @@ namespace Scheduler.Pages
                         if (Processes[j].RemainingTime > 0 && !Processes[j].Queued && Processes[j].ArrivalTime <= TotalTime)
                         {
                             Processes[j].Queued = true;
-                            heap.Enqueue(j, Processes[j].ServiceTime);
+                            Waiting.Enqueue(j, Processes[j].ServiceTime);
                         }
                     }
 
-                    // select shortest process from top of min-heap
+                    // select shortest process from top of min-Waiting
                     // assuming it is not empty (account for CPU idle time)
-                    if (heap.Count > 0)
+                    if (Waiting.Count > 0)
                     {
-                        curr = heap.Dequeue();
+                        curr = Waiting.Dequeue();
                         Processes[curr].RemainingTime--;
                         Processes[curr].IsRunning[i] = true;
                     }
@@ -269,7 +357,7 @@ namespace Scheduler.Pages
             // currently running process index
             int curr = -1;
 
-            PriorityQueue<int, int> heap = new PriorityQueue<int, int>();
+            PriorityQueue<int, int> Waiting = new PriorityQueue<int, int>();
 
             // track which processes have arrived
             int LastArrivedIDX = -1;
@@ -279,12 +367,19 @@ namespace Scheduler.Pages
                 // simulate process arrival
                 if (Processes.Count > LastArrivedIDX+1 && Processes[LastArrivedIDX + 1].ArrivalTime == i)
                 {
-                    heap.Enqueue(LastArrivedIDX + 1, Processes[LastArrivedIDX + 1].RemainingTime);
+                    Waiting.Enqueue(LastArrivedIDX + 1, Processes[LastArrivedIDX + 1].RemainingTime);
                     Processes[LastArrivedIDX + 1].Queued = true;
                     LastArrivedIDX++;
                 }
 
-                if (curr > -1)
+                // initial process
+                if (curr == -1)
+                {
+                    curr = Waiting.Dequeue();
+                    Processes[curr].RemainingTime--;
+                    Processes[curr].IsRunning[i] = true;
+                }
+                else
                 {
                     // udpate if current process just completed
                     if (Processes[curr].RemainingTime == 0 && Processes[curr].Queued)
@@ -297,14 +392,14 @@ namespace Scheduler.Pages
                     }
                     else if (Processes[curr].Queued)
                     {
-                        heap.Enqueue(curr, Processes[curr].RemainingTime);
+                        Waiting.Enqueue(curr, Processes[curr].RemainingTime);
                     }
 
-                    // select shortest process from top of min-heap
+                    // select shortest process from top of min-Waiting
                     // assuming it is not empty (account for CPU idle time)
-                    if (heap.Count > 0)
+                    if (Waiting.Count > 0)
                     {
-                        curr = heap.Dequeue();
+                        curr = Waiting.Dequeue();
                         Processes[curr].RemainingTime--;
                         Processes[curr].IsRunning[i] = true;
                     }
@@ -327,14 +422,14 @@ namespace Scheduler.Pages
         {
             int curr = -1;
             int LastArrivedIDX = -1;
-            List<int> Queued = new List<int>();
+            List<int> Waiting = new List<int>();
 
             for (int i = 0; i < Process.TotalServiceTime; i++)
             {
                 // add new process to Queued list
                 if (Processes.Count > LastArrivedIDX + 1 && Processes[LastArrivedIDX + 1].ArrivalTime == i)
                 {
-                    Queued.Add(LastArrivedIDX + 1);
+                    Waiting.Add(LastArrivedIDX + 1);
                     Processes[LastArrivedIDX + 1].Queued = true;
                     LastArrivedIDX++;
                 }
@@ -342,8 +437,8 @@ namespace Scheduler.Pages
                 // initial process
                 if (curr == -1)
                 {
-                    curr = Queued[Queued.Count - 1];
-                    Queued.RemoveAt(Queued.Count - 1);
+                    curr = Waiting[Waiting.Count - 1];
+                    Waiting.RemoveAt(Waiting.Count - 1);
                     Processes[curr].RemainingTime--;
                     Processes[curr].IsRunning[i] = true;
                 }
@@ -362,20 +457,20 @@ namespace Scheduler.Pages
                     // i - ArrivalTime
                     // calculate R
                     // (WaitTime + ServiceTime)/ServiceTime
-                    for (int j = 0; j < Queued.Count; j++)
+                    for (int j = 0; j < Waiting.Count; j++)
                     {
-                        Processes[Queued[j]].WaitTime = i - Processes[Queued[j]].ArrivalTime;
-                        Processes[Queued[j]].ResponseRatio = ((double)Processes[Queued[j]].WaitTime + Processes[Queued[j]].ServiceTime) / (double)Processes[Queued[j]].ServiceTime;
+                        Processes[Waiting[j]].WaitTime = i - Processes[Waiting[j]].ArrivalTime;
+                        Processes[Waiting[j]].ResponseRatio = ((double)Processes[Waiting[j]].WaitTime + Processes[Waiting[j]].ServiceTime) / (double)Processes[Waiting[j]].ServiceTime;
                     }
 
-                    if (Queued.Count > 0)
+                    if (Waiting.Count > 0)
                     {
                         // sort queued list by R
-                        Queued.Sort((p1, p2) => Processes[p2].ResponseRatio.CompareTo(Processes[p1].ResponseRatio));
+                        Waiting.Sort((p1, p2) => Processes[p2].ResponseRatio.CompareTo(Processes[p1].ResponseRatio));
 
                         // pick highest R 
-                        curr = Queued[0];
-                        Queued.RemoveAt(0);
+                        curr = Waiting[0];
+                        Waiting.RemoveAt(0);
                         Processes[curr].RemainingTime--;
                         Processes[curr].IsRunning[i] = true;
                     }
@@ -404,7 +499,27 @@ namespace Scheduler.Pages
 
         public string Feedback()
         {
-
+            // add new process to queue
+            // - check arrival time
+            // - set Queued to true
+            // if initial process
+            // - assign curr to first proc in queue
+            // - remove curr from queue
+            // - increment TimeInQuantum
+            // - decrement RemainingTime
+            // - set IsRunning index to true
+            // if curr proc exceed time quantum
+            // - set TimeInQuantum = 0
+            // - move to back of queue
+            // - if values in queue
+            //     - set curr to front of queue
+            //     - remove curr from queue
+            // if curr proc RemaingingTime == 0
+            // - update FinishTime, Turnaround, TT
+            // - set Queued = 0
+            // - if values in queue
+            //     - set curr to front of queue
+            //     - remove curr from queue
 
             return get_key();
         }
