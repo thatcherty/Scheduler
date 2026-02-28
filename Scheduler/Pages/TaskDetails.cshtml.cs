@@ -499,15 +499,49 @@ namespace Scheduler.Pages
 
         public string Feedback()
         {
-            // add new process to queue
-            // - check arrival time
-            // - set Queued to true
-            // if initial process
-            // - assign curr to first proc in queue
-            // - remove curr from queue
-            // - increment TimeInQuantum
-            // - decrement RemainingTime
-            // - set IsRunning index to true
+            TotalTime = 0;
+            int curr = -1;
+            int LastArrivedIDX = -1;
+
+            // store queue level 0 being first and 2 being last
+            List<Queue<int>> Waiting = new List<Queue<int>>();
+
+            for (int i = 0; i < Process.TimeQuantum; i++)
+            {
+                // add new process to queue
+                // - check arrival time
+                // - set Queued to true
+                // - set nexxt queue to 1
+                if (Processes.Count > LastArrivedIDX + 1 && Processes[LastArrivedIDX + 1].ArrivalTime == i)
+                {
+                    Waiting[0].Enqueue(LastArrivedIDX + 1);
+                    Processes[LastArrivedIDX + 1].Queued = true;
+                    Processes[LastArrivedIDX + 1].NextQueue = 1;
+                    LastArrivedIDX++;
+                }
+
+                // if initial process
+                // - assign curr to first proc in queue
+                // - remove curr from queue
+                // - increment TimeInQuantum
+                // - decrement RemainingTime
+                // - set IsRunning index to true
+                if (curr == -1)
+                {
+                    curr = Waiting[0].Dequeue();
+                    Processes[curr].RemainingTime--;
+                    Processes[curr].TimeInQuantum++;
+                    Processes[curr].IsRunning[i] = true;
+                }
+                else
+                {
+
+                }
+
+            }
+
+
+
             // if curr proc exceed time quantum
             // - set TimeInQuantum = 0
             // - move to back of queue
@@ -520,6 +554,17 @@ namespace Scheduler.Pages
             // - if values in queue
             //     - set curr to front of queue
             //     - remove curr from queue
+
+            // need to use FCFS in queue 0 and 1 and RR in queue 2
+
+
+            // add calculations to final process
+            if (curr > -1)
+            {
+                Processes[curr].FinishTime = Process.TotalServiceTime;
+                Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+            }
 
             return get_key();
         }
