@@ -19,6 +19,15 @@ namespace Scheduler.Pages
 
             Processes = _cache.Get<List<Process>>(key) ?? new();
 
+            foreach (Process p in Processes)
+            {
+                Process.TTMean += Math.Round(p.TT, 2);
+                Process.TurnaroundMean += Math.Round(p.Turnaround, 2);
+            }
+
+            Process.TTMean /= Processes.Count;
+            Process.TurnaroundMean /= Processes.Count;
+
             return Page();
         }
     }

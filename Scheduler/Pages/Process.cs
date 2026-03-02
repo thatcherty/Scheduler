@@ -15,6 +15,8 @@
         public static int TotalServiceTime { get; set; }
         public static int TimeQuantum { get; set; }
         public static Algorithms SelectedAlgo { get; set; }
+        public static double TurnaroundMean { get; set; } = 0;
+        public static double TTMean { get; set; } = 0;
 
 
         // Common
@@ -40,7 +42,7 @@
 
         public int FinishTime { get; set; }
 
-        public int Turnaround { get; set; }
+        public double Turnaround { get; set; }
 
         public double TT { get; set; }
 

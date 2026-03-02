@@ -17,6 +17,9 @@ namespace Scheduler.Pages
             AlgoDescriptions.Add("Shortest Remaining Time");
             AlgoDescriptions.Add("Highest Response Ratio Next");
             AlgoDescriptions.Add("Feedback");
+
+            Process.TTMean = 0;
+            Process.TurnaroundMean = 0;
         }
 
         public RedirectToPageResult OnGetSelectAlgo(Algorithms algo)
