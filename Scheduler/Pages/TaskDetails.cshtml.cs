@@ -496,79 +496,112 @@ namespace Scheduler.Pages
             return get_key();
         }
 
-
         public string Feedback()
         {
             TotalTime = 0;
-            int curr = -1;
+
+            // current running process index
+            int curr = -1;              
+
+            // current queue level for curr
+            int currQ = 0;              
             int LastArrivedIDX = -1;
 
-            // store queue level 0 being first and 2 being last
-            List<Queue<int>> Waiting = new List<Queue<int>>();
+            int numQueues = 3;
+            int lastQ = numQueues - 1;
 
-            for (int i = 0; i < Process.TimeQuantum; i++)
+            // initialize Waiting with 3 queues
+            Queue<int>[] Waiting = new Queue<int>[numQueues];
+            for (int q = 0; q < numQueues; q++)
             {
-                // add new process to queue
-                // - check arrival time
-                // - set Queued to true
-                // - set nexxt queue to 1
+                Waiting[q] = new Queue<int>();
+            }
+
+            // helper methods
+            int TotalWaitingCount()
+            {
+                int sum = 0;
+                for (int q = 0; q < numQueues; q++) sum += Waiting[q].Count;
+                return sum;
+            }
+
+            int DequeueNext(out int qLevel)
+            {
+                for (int q = 0; q < numQueues; q++)
+                {
+                    if (Waiting[q].Count > 0)
+                    {
+                        qLevel = q;
+                        return Waiting[q].Dequeue();
+                    }
+                }
+                qLevel = 0;
+                return -1;
+            }
+
+            // simulation
+            for (int i = 0; i < Process.TotalServiceTime; i++)
+            {
+                // add new process to top queue
                 if (Processes.Count > LastArrivedIDX + 1 && Processes[LastArrivedIDX + 1].ArrivalTime == i)
                 {
                     Waiting[0].Enqueue(LastArrivedIDX + 1);
                     Processes[LastArrivedIDX + 1].Queued = true;
-                    Processes[LastArrivedIDX + 1].NextQueue = 1;
+                    Processes[LastArrivedIDX + 1].TimeInQuantum = 0;
                     LastArrivedIDX++;
                 }
 
-                // if initial process
-                // - assign curr to first proc in queue
-                // - remove curr from queue
-                // - increment TimeInQuantum
-                // - decrement RemainingTime
-                // - set IsRunning index to true
+                // If q=1, this triggers each tick after the process has run once.
+                if (curr != -1 && Processes[curr].Queued && Processes[curr].TimeInQuantum == Process.TimeQuantum)
+                {
+                    // reset slice counter no matter what
+                    Processes[curr].TimeInQuantum = 0;
+
+                    // Only move the process if another is waiting.
+                    // If nothing else is waiting, let it keep running
+                    if (TotalWaitingCount() > 0)
+                    {
+                        if (currQ < lastQ)
+                        {
+                            // FCFS queues: demote
+                            Waiting[currQ + 1].Enqueue(curr);
+                        }
+                        else
+                        {
+                            // last queue: RR rotation
+                            Waiting[lastQ].Enqueue(curr);
+                        }
+                        curr = -1;
+                    }
+                }
+
+                // schedule if idle
                 if (curr == -1)
                 {
-                    curr = Waiting[0].Dequeue();
-                    Processes[curr].RemainingTime--;
-                    Processes[curr].TimeInQuantum++;
-                    Processes[curr].IsRunning[i] = true;
+                    curr = DequeueNext(out currQ);
+                    if (curr == -1)
+                        continue; // idle tick
                 }
-                else
+
+                // let current process run once
+                Processes[curr].RemainingTime--;
+                Processes[curr].TimeInQuantum++;
+                Processes[curr].IsRunning[i] = true;
+
+                // add calculations
+                if (Processes[curr].RemainingTime == 0 && Processes[curr].Queued)
                 {
+                    Processes[curr].FinishTime = i + 1;
+                    Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
+                    Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
+                    Processes[curr].Queued = false;
 
+                    curr = -1;
                 }
-
-            }
-
-
-
-            // if curr proc exceed time quantum
-            // - set TimeInQuantum = 0
-            // - move to back of queue
-            // - if values in queue
-            //     - set curr to front of queue
-            //     - remove curr from queue
-            // if curr proc RemaingingTime == 0
-            // - update FinishTime, Turnaround, TT
-            // - set Queued = 0
-            // - if values in queue
-            //     - set curr to front of queue
-            //     - remove curr from queue
-
-            // need to use FCFS in queue 0 and 1 and RR in queue 2
-
-
-            // add calculations to final process
-            if (curr > -1)
-            {
-                Processes[curr].FinishTime = Process.TotalServiceTime;
-                Processes[curr].Turnaround = Processes[curr].FinishTime - Processes[curr].ArrivalTime;
-                Processes[curr].TT = (double)Processes[curr].Turnaround / Processes[curr].ServiceTime;
             }
 
             return get_key();
         }
-
 
     }
 }
