@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
@@ -7,6 +8,7 @@ namespace Scheduler.Pages
     public class OutputModel : PageModel
     {
         public List<Process>? Processes;
+        public string? Title;
 
         private readonly IMemoryCache _cache;
 
@@ -27,6 +29,32 @@ namespace Scheduler.Pages
 
             Process.TTMean /= Processes.Count;
             Process.TurnaroundMean /= Processes.Count;
+
+            // select algorithm
+            switch (Process.SelectedAlgo)
+            {
+                case Algorithms.FCFS:
+                    Title = "FCFS";
+                    break;
+                case Algorithms.RR:
+                    Title = "RR";
+                    break;
+                case Algorithms.SPN:
+                    Title = "SPN";
+                    break;
+                case Algorithms.SRT:
+                    Title = "SRT";
+                    break;
+                case Algorithms.HRRN:
+                    Title = "HRRN";
+                    break;
+                case Algorithms.Feedback:
+                    Title = "Feedback";
+                    break;
+                default:
+                    Title = "No Algo Selected";
+                    break;
+            }
 
             return Page();
         }
